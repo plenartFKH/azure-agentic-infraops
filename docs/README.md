@@ -2,18 +2,22 @@
 
 > Azure infrastructure engineered by AI agents and skills | [Current Version](../VERSION.md)
 
-Transform Azure infrastructure requirements into deploy-ready Bicep code using coordinated
-AI agents and reusable skills, aligned with Azure Well-Architected Framework (WAF) and
-Azure Verified Modules (AVM).
+Transform Azure infrastructure requirements into deploy-ready IaC code (Bicep or Terraform)
+using coordinated AI agents and reusable skills, aligned with Azure Well-Architected
+Framework (WAF) and Azure Verified Modules (AVM).
 
-## What's New: VS Code 1.109 Agent Orchestration
+## What's New: Dual IaC Track + Challenger Agent
 
-This project now implements the **Conductor pattern** from VS Code 1.109:
+The project now supports **two parallel IaC tracks** — Bicep and Terraform — sharing
+common requirements, architecture, and design steps (1-3) before diverging into
+track-specific planning, code generation, and deployment (steps 4-6).
 
-- **InfraOps Conductor**: Master orchestrator with mandatory human approval gates
-- **Validation Subagents**: TDD-style Bicep validation (lint → what-if → review)
-- **New Frontmatter**: `user-invokable`, `agents` list, model fallbacks
-- **Skills GA**: Skills are now generally available with enhanced discovery
+- **Dual IaC Track**: Choose Bicep or Terraform at requirements time; the Conductor routes automatically
+- **3 Terraform Agents**: `terraform-planner`, `terraform-codegen`, `terraform-deploy`
+- **3 Terraform Subagents**: `terraform-lint`, `terraform-review`, `terraform-plan` (preview)
+- **Challenger Agent**: Adversarial reviewer that challenges requirements, architecture, and plans
+- **5 MCP Servers**: Azure, Pricing, Terraform, GitHub, Microsoft Learn
+- **Skills GA**: 14 skills with enhanced discovery (including `terraform-patterns`)
 
 See the [conductor agent](../.github/agents/01-conductor.agent.md) for orchestration details.
 
@@ -30,7 +34,7 @@ See the [conductor agent](../.github/agents/01-conductor.agent.md) for orchestra
 
 ---
 
-## Agents (8 + 3 Subagents)
+## Agents (13 + 9 Subagents)
 
 Agents are interactive AI assistants for specific workflow phases. Invoke via `Ctrl+Shift+A`.
 
@@ -42,17 +46,39 @@ Agents are interactive AI assistants for specific workflow phases. Invoke via `C
 
 ### Primary Agents (User-Invokable)
 
-| Agent          | Persona       | Phase | Purpose                            |
-| -------------- | ------------- | ----- | ---------------------------------- |
-| `requirements` | 📜 Scribe     | 1     | Gather infrastructure requirements |
-| `architect`    | 🏛️ Oracle     | 2     | WAF assessment and design          |
-| `design`       | 🎨 Artisan    | 3     | Diagrams and ADRs                  |
-| `bicep-plan`   | 📐 Strategist | 4     | Implementation planning            |
-| `bicep-code`   | ⚒️ Forge      | 5     | Bicep template generation          |
-| `deploy`       | 🚀 Envoy      | 6     | Azure deployment                   |
-| `diagnose`     | 🔍 Sentinel   | —     | Post-deployment diagnostics        |
+Steps 1-3 and 7 are shared. Steps 4-6 have Bicep and Terraform variants.
+
+| Agent               | Persona       | Phase | Purpose                            |
+| ------------------- | ------------- | ----- | ---------------------------------- |
+| `requirements`      | 📜 Scribe     | 1     | Gather infrastructure requirements |
+| `architect`         | 🏛️ Oracle     | 2     | WAF assessment and design          |
+| `design`            | 🎨 Artisan    | 3     | Diagrams and ADRs                  |
+| `bicep-planner`     | 📐 Strategist | 4b    | Bicep implementation planning      |
+| `terraform-planner` | 📐 Strategist | 4t    | Terraform implementation planning  |
+| `bicep-codegen`     | ⚒️ Forge      | 5b    | Bicep template generation          |
+| `terraform-codegen` | ⚒️ Forge      | 5t    | Terraform config generation        |
+| `bicep-deploy`      | 🚀 Envoy      | 6b    | Bicep deployment                   |
+| `terraform-deploy`  | 🚀 Envoy      | 6t    | Terraform deployment               |
+| `as-built`          | 📚 Archivist  | 7     | As-built documentation suite       |
+
+### Standalone Agents
+
+| Agent        | Persona       | Purpose                                      |
+| ------------ | ------------- | -------------------------------------------- |
+| `challenger` | ⚔️ Challenger | Adversarial review of requirements and plans |
+| `diagnose`   | 🔍 Sentinel   | Post-deployment diagnostics                  |
 
 ### Validation Subagents (Conductor-Invoked)
+
+**Shared:**
+
+| Subagent                        | Purpose                         | Returns                     |
+| ------------------------------- | ------------------------------- | --------------------------- |
+| `cost-estimate-subagent`        | Azure Pricing MCP queries       | Cost breakdown              |
+| `governance-discovery-subagent` | Azure Policy REST API discovery | Governance constraints JSON |
+| `challenger-review-subagent`    | Adversarial artifact review     | Challenge findings JSON     |
+
+**Bicep track:**
 
 | Subagent                | Purpose                               | Returns                        |
 | ----------------------- | ------------------------------------- | ------------------------------ |
@@ -60,9 +86,17 @@ Agents are interactive AI assistants for specific workflow phases. Invoke via `C
 | `bicep-whatif-subagent` | Deployment preview (what-if analysis) | Change summary, violations     |
 | `bicep-review-subagent` | Code review against AVM standards     | APPROVED/NEEDS_REVISION/FAILED |
 
+**Terraform track:**
+
+| Subagent                    | Purpose                                    | Returns                        |
+| --------------------------- | ------------------------------------------ | ------------------------------ |
+| `terraform-lint-subagent`   | Terraform syntax validation (validate/fmt) | PASS/FAIL with diagnostics     |
+| `terraform-plan-subagent`   | Deployment preview (terraform plan)        | Change summary, destroy flags  |
+| `terraform-review-subagent` | Code review against AVM-TF standards       | APPROVED/NEEDS_REVISION/FAILED |
+
 ---
 
-## Skills (8)
+## Skills (14)
 
 Skills are reusable capabilities that agents invoke or that activate automatically based on prompts.
 
@@ -80,7 +114,14 @@ Skills are reusable capabilities that agents invoke or that activate automatical
 | `azure-diagrams` | Python architecture diagrams  | "create diagram", "visualize architecture" |
 | `azure-adr`      | Architecture Decision Records | "create ADR", "document decision"          |
 
-### Workflow & Tool Integration (Category 3)
+### Infrastructure Patterns (Category 3)
+
+| Skill                  | Purpose                                    | Triggers                                         |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------ |
+| `azure-bicep-patterns` | Reusable Bicep infrastructure patterns     | "bicep pattern", "hub-spoke", "private endpoint" |
+| `terraform-patterns`   | Reusable Terraform infrastructure patterns | "terraform pattern", "AVM-TF", "HCL"             |
+
+### Workflow & Tool Integration (Category 4)
 
 | Skill                 | Purpose                                    | Triggers                                      |
 | --------------------- | ------------------------------------------ | --------------------------------------------- |
@@ -88,6 +129,20 @@ Skills are reusable capabilities that agents invoke or that activate automatical
 | `git-commit`          | Commit message conventions                 | "commit", "conventional commit"               |
 | `docs-writer`         | Repo-aware docs maintenance                | "audit docs", "fix counts", "freshness check" |
 | `make-skill-template` | Create new skills                          | "create skill", "scaffold skill"              |
+
+### Troubleshooting (Category 5)
+
+| Skill                   | Purpose                      | Triggers                          |
+| ----------------------- | ---------------------------- | --------------------------------- |
+| `azure-troubleshooting` | KQL templates, health checks | "troubleshoot", "diagnose", "KQL" |
+
+### Microsoft Docs Integration (Category 6)
+
+| Skill                      | Purpose                               | Triggers                                     |
+| -------------------------- | ------------------------------------- | -------------------------------------------- |
+| `microsoft-docs`           | Query official Microsoft docs         | "microsoft docs", "azure docs", "learn"      |
+| `microsoft-code-reference` | SDK method verification, code samples | "SDK", "API reference", "code sample"        |
+| `microsoft-skill-creator`  | Create skills for Microsoft tech      | "create microsoft skill", "technology skill" |
 
 ---
 
@@ -124,14 +179,30 @@ See [prompt-guide/](prompt-guide/) for the full guide.
 ```text
 azure-agentic-infraops/
 ├── .github/
-│   ├── agents/           # 8 agent definitions + 3 subagents
-│   ├── skills/           # 8 skill definitions
-│   └── instructions/     # File-type rules
-├── agent-output/         # Generated artifacts
-├── infra/bicep/          # Bicep templates
+│   ├── agents/           # 13 agent definitions + 9 subagents
+│   │   └── _subagents/   # Validation subagents (Bicep + Terraform)
+│   ├── skills/           # 14 skill definitions
+│   └── instructions/     # File-type rules (25 instruction files)
+├── agent-output/         # Generated artifacts per project
+├── infra/
+│   ├── bicep/            # Bicep templates by project
+│   └── terraform/        # Terraform configurations by project
+├── mcp/azure-pricing-mcp/  # Custom Azure Pricing MCP server
 ├── docs/prompt-guide/    # Prompt examples for agents & skills
 └── docs/                 # This documentation
 ```
+
+---
+
+## Project Health
+
+| Resource                                                           | Purpose                                         |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| [QUALITY_SCORE.md](../QUALITY_SCORE.md)                            | Per-domain grades updated by doc-gardening      |
+| [exec-plans/tech-debt-tracker.md](exec-plans/tech-debt-tracker.md) | Running inventory of known gaps and debt        |
+| [exec-plans/](exec-plans/)                                         | Multi-step execution plans and decision history |
+
+Run the doc-gardening prompt (`.github/prompts/doc-gardening.prompt.md`) to refresh grades.
 
 ---
 
