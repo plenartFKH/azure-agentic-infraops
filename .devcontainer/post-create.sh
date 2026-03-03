@@ -256,6 +256,7 @@ printf "        %-15s %s\n" "Checkov:" "$(checkov --version 2>/dev/null || echo 
 printf "        %-15s %s\n" "markdownlint:" "$(cd /tmp && markdownlint-cli2 --version 2>/dev/null | head -n1 || echo '❌ not installed')"
 printf "        %-15s %s\n" "graphviz:" "$(dot -V 2>&1 | head -n1 || echo '❌ not installed')"
 printf "        %-15s %s\n" "dos2unix:" "$(dos2unix --version 2>&1 | head -n1 || echo '❌ not installed')"
+printf "        %-15s %s\n" "tfsec:" "$(tfsec --version 2>/dev/null || echo '❌ not installed')"
 printf "        %-15s %s\n" "terraform-mcp:" "$(terraform-mcp-server --version 2>/dev/null || /go/bin/terraform-mcp-server --version 2>/dev/null || echo '❌ not installed')"
 
 step_done "All verifications complete"
